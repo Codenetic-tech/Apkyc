@@ -126,7 +126,9 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ loading }) => {
       const longLink = `https://www.gopocket.in/open-account-call-back?refer=${user.ap_code}&src=${user.user_code}&tag=${encodeURIComponent(finalTag)}`;
 
       // Send to webhook to get short link
-      const response = await fetch('/api/method/rms.apuser.link', {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.link`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
