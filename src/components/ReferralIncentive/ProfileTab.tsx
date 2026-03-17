@@ -63,7 +63,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ loading }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  
+
   const [deeplinks, setDeeplinks] = useState<Deeplink[]>([]);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
@@ -77,7 +77,9 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ loading }) => {
   const fetchDeeplinks = async () => {
     setIsLoadingLinks(true);
     try {
-      const response = await fetch('/api/method/rms.apuser.getlink', {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.getlink`;
+      const response = await fetch(apiUrl, {
         headers: {
           'token': token
         }
@@ -444,14 +446,14 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ loading }) => {
                               </span>
                             </div>
                           </div>
-                          
+
                           <div className="flex gap-1">
                             <button
                               onClick={() => copySpecificLink(item.deeplink, item.name)}
                               className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                               title="Copy link"
                             >
-                              {isItemCopied ? <Check size={14} className="text-green-600"/> : <Copy size={14} />}
+                              {isItemCopied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
                             </button>
                             <button
                               onClick={() => shareSpecificLink(item.deeplink)}
