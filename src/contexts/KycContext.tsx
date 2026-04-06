@@ -18,6 +18,15 @@ export interface KycItem {
     bfo: string | null;
     mcx: string | null;
     client_mapping: boolean | null;
+    mobile_number: string | null;
+    kyc_stage_history?: KycStageHistory[];
+}
+
+export interface KycStageHistory {
+    kyc_stage: string;
+    stage_status: string;
+    rejection_reason: string;
+    updated_on: string;
 }
 
 export interface KycStatusCount {
@@ -31,7 +40,7 @@ export interface KycStatusCount {
 interface KycDataResponse {
     message: {
         count: number;
-        status_count: KycStatusCount;
+        status_count?: KycStatusCount;
         data: KycItem[];
     };
 }
@@ -44,6 +53,7 @@ interface FetchKycParams {
     application_id?: string;
     ucc_field?: string;
     application_status?: string;
+    refer_list?: string[];
 }
 
 interface KycContextType {
@@ -52,6 +62,8 @@ interface KycContextType {
     error: string | null;
     count: number;
     statusCount: KycStatusCount;
+    selectedBranches: string[];
+    setSelectedBranches: (branches: string[]) => void;
     fetchKycData: (params?: FetchKycParams, silent?: boolean) => Promise<void>;
     refreshKycData: (params?: FetchKycParams) => Promise<void>;
     clearKycData: () => void;
@@ -68,19 +80,65 @@ export const useKyc = () => {
 };
 
 export const KycProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { token, isAuthenticated } = useAuth();
-    const [kycData, setKycData] = useState<KycItem[] | null>(null);
+    const { token, isAuthenticated, hierarchyData, logout } = useAuth();
+    const [kycData, setKycData] = useState<KycItem[] | null>(() => {
+        const stored = sessionStorage.getItem('kycData');
+        return stored ? JSON.parse(stored) : null;
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [count, setCount] = useState(0);
-    const [statusCount, setStatusCount] = useState<KycStatusCount>({
-        'IN PROGRESS': 0,
-        'PENDING FOR APPROVAL': 0,
-        'REJECTED': 0,
-        'APPROVED': 0,
-        'ACCOUNT OPENED': 0,
+    const [count, setCount] = useState(() => {
+        const stored = sessionStorage.getItem('kycCount');
+        return stored ? parseInt(stored, 10) : 0;
     });
+    const [statusCount, setStatusCount] = useState<KycStatusCount>(() => {
+        const stored = sessionStorage.getItem('kycStatusCount');
+        return stored ? JSON.parse(stored) : {
+            'IN PROGRESS': 0,
+            'PENDING FOR APPROVAL': 0,
+            'REJECTED': 0,
+            'APPROVED': 0,
+            'ACCOUNT OPENED': 0,
+        };
+    });
+    const [selectedBranches, setSelectedBranches] = useState<string[]>(() => {
+        const stored = sessionStorage.getItem('kycSelectedBranches');
+        return stored ? JSON.parse(stored) : [];
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('kycSelectedBranches', JSON.stringify(selectedBranches));
+    }, [selectedBranches]);
     const isFetching = React.useRef(false);
+    const hasInitialFetched = React.useRef(false);
+
+    const expandBranches = useCallback((selectedNodes: string[]) => {
+        if (!hierarchyData || !Array.isArray(hierarchyData)) return selectedNodes;
+
+        // Build a Map for fast lookup (Parent -> Children[])
+        const childrenMap = new Map<string, string[]>();
+        hierarchyData.forEach(node => {
+            const parent = node.parent_gopocket_tree;
+            if (parent) {
+                if (!childrenMap.has(parent)) {
+                    childrenMap.set(parent, []);
+                }
+                childrenMap.get(parent)!.push(node.name);
+            }
+        });
+
+        const allCodes = new Set<string>();
+        const collectDescendants = (nodeId: string) => {
+            allCodes.add(nodeId);
+            const children = childrenMap.get(nodeId);
+            if (children) {
+                children.forEach(collectDescendants);
+            }
+        };
+
+        selectedNodes.forEach(name => collectDescendants(name));
+        return Array.from(allCodes);
+    }, [hierarchyData]);
 
     const fetchKycData = useCallback(async (params: FetchKycParams = {}, silent: boolean = false) => {
         if (!token || isFetching.current) return;
@@ -90,7 +148,7 @@ export const KycProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setError(null);
         try {
             const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-            const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.apkycdata`;
+            const apiUrl = `${API_BASE_URL}/api/method/rms.branch.branchkycdata`;
 
             // Default payload for pagination
             const payload: any = {
@@ -104,6 +162,12 @@ export const KycProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (params.application_id) payload.application_id = params.application_id;
             if (params.ucc_field) payload.ucc_field = params.ucc_field;
             if (params.application_status) payload.application_status = params.application_status;
+            
+            // Add branch filters with expansion
+            const branchesToFilter = params.refer_list || selectedBranches;
+            if (branchesToFilter && branchesToFilter.length > 0) {
+                payload.refer_list = expandBranches(branchesToFilter);
+            }
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -111,64 +175,91 @@ export const KycProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     'Content-Type': 'application/json',
                     'token': token
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                mode: 'cors',
             });
 
-            if (response.status !== 200) {
+            if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+
+                if (errorData.message && errorData.message.status === 'error' && errorData.message.message === 'Token has been revoked or does not match') {
+                    logout();
+                    return;
+                }
+
                 const errorMessage = errorData.exception || errorData.message || response.statusText;
 
-                if (errorMessage.includes("No KYC Data found")) {
+                if (typeof errorMessage === 'string' && errorMessage.includes("No KYC Data found")) {
                     setKycData([]);
                     setCount(0);
                     setError(null);
+                    sessionStorage.setItem('kycData', JSON.stringify([]));
+                    sessionStorage.setItem('kycCount', '0');
                     return;
                 }
-                throw new Error(`Failed to fetch KYC data: ${errorMessage}`);
+                throw new Error(`Failed to fetch KYC data: ${typeof errorMessage === 'string' ? errorMessage : 'Unknown error'}`);
             }
 
-            const result: KycDataResponse = await response.json();
+            const result: any = await response.json();
+
+            if (result.message && result.message.status === 'error' && result.message.message === 'Token has been revoked or does not match') {
+                logout();
+                return;
+            }
 
             if (result.message && result.message.data) {
                 setKycData(result.message.data);
+                sessionStorage.setItem('kycData', JSON.stringify(result.message.data));
+                
                 setCount(result.message.count || 0);
+                sessionStorage.setItem('kycCount', (result.message.count || 0).toString());
+                
                 if (result.message.status_count) {
                     setStatusCount(result.message.status_count);
+                    sessionStorage.setItem('kycStatusCount', JSON.stringify(result.message.status_count));
                 }
             } else {
                 setKycData([]);
+                sessionStorage.setItem('kycData', JSON.stringify([]));
                 setCount(0);
+                sessionStorage.setItem('kycCount', '0');
             }
         } catch (err: any) {
             console.error('Error fetching KYC data:', err);
             setError(err.message || 'An error occurred while fetching KYC data.');
-            setKycData(null);
-            setCount(0);
+            // Keeping existing data intact to prevent UI flashes during network errors
         } finally {
             setIsLoading(false);
             isFetching.current = false;
         }
-    }, [token]);
+    }, [token, selectedBranches, expandBranches]);
 
     const clearKycData = useCallback(() => {
         setKycData(null);
         setError(null);
         setCount(0);
+        sessionStorage.removeItem('kycData');
+        sessionStorage.removeItem('kycCount');
+        sessionStorage.removeItem('kycStatusCount');
+        sessionStorage.removeItem('kycSelectedBranches');
     }, []);
 
-    // Initial fetch on mount/auth
-    useEffect(() => {
-        if (isAuthenticated && token && kycData === null && !isLoading && !error) {
-            fetchKycData();
-        }
-    }, [isAuthenticated, token, fetchKycData, kycData, isLoading, error]);
 
     // Clear data on logout
     useEffect(() => {
         if (!isAuthenticated) {
             clearKycData();
+            hasInitialFetched.current = false;
         }
     }, [isAuthenticated, clearKycData]);
+
+    // Automatically fetch initial KYC data after login
+    useEffect(() => {
+        if (isAuthenticated && token && !hasInitialFetched.current) {
+            fetchKycData({}, true); // silent fetch
+            hasInitialFetched.current = true;
+        }
+    }, [isAuthenticated, token, fetchKycData]);
 
     const refreshKycData = useCallback(async (params?: FetchKycParams) => {
         await fetchKycData(params || {}, true);
@@ -182,6 +273,8 @@ export const KycProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             error,
             count,
             statusCount,
+            selectedBranches,
+            setSelectedBranches,
             fetchKycData,
             refreshKycData,
             clearKycData

@@ -1,18 +1,24 @@
-import React from 'react';
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { KycProvider } from '@/contexts/KycContext';
-import Layout from './components/Layout';
-import LoginForm from './components/Auth/LoginForm';
-import { Sparkles } from 'lucide-react';
-import Incentive from './components/management';
-import Tickets from './components/tickets';
-import TasksKanbanPage from './components/tasks-kanban';
-import ReferralIncentive from './components/referral';
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { KycProvider } from "@/contexts/KycContext";
+import { FilterProvider } from "@/contexts/FilterContext";
+import Index from "./pages/Index";
+import OrderBook from "./pages/OrderBook";
+import PositionBook from "./pages/PositionBook";
+import Holdings from "./pages/Holdings";
+import MutualFunds from "./pages/MutualFunds";
+import Settings from "./pages/Settings";
+import StrategyBuilder from "./pages/StrategyBuilder";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Kyc from "./pages/Kyc";
+import MainLayout from "./components/layout/MainLayout";
+import { Sparkles } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -31,107 +37,122 @@ const ComingSoon = () => (
   </div>
 );
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
-  return <Layout>{children}</Layout>;
-};
-
-// Add role-based redirection logic
-const getDefaultRoute = (role: string | undefined) => {
-  switch (role) {
-    case 'banking':
-      return '/segregation';
-    default:
-      return '/dashboard';
-  }
+  return <MainLayout>{children}</MainLayout>;
 };
 
 const AppContent = () => {
-  const { isAuthenticated, user } = useAuth(); // Add user to destructuring
+  useEffect(() => {
+    const savedHsl = localStorage.getItem("theme-color-hsl");
+    if (savedHsl) {
+      document.documentElement.style.setProperty("--primary", savedHsl);
+    }
+  }, []);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            isAuthenticated ?
-              <Navigate to={getDefaultRoute(user?.role)} /> :
-              <LoginForm />
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <ReferralIncentive />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/incentive"
-          element={
-            <ProtectedRoute>
-              <Incentive />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tickets"
-          element={
-            <ProtectedRoute>
-              <Tickets />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute>
-              <ComingSoon />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/task"
-          element={
-            <ProtectedRoute>
-              <TasksKanbanPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <ComingSoon />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/" element={<Navigate to={isAuthenticated ? getDefaultRoute(user?.role) : "/login"} />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Navigate to="/kyc" replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/orderbook"
+        element={
+          <ProtectedRoute>
+            <OrderBook />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/positions"
+        element={
+          <ProtectedRoute>
+            <PositionBook />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/holdings"
+        element={
+          <ProtectedRoute>
+            <Holdings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mutualfunds"
+        element={
+          <ProtectedRoute>
+            <MutualFunds />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ticketing"
+        element={
+          <ProtectedRoute>
+            <ComingSoon />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/strategy-builder"
+        element={
+          <ProtectedRoute>
+            <StrategyBuilder />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kyc"
+        element={
+          <ProtectedRoute>
+            <Kyc />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <KycProvider>
-          <Toaster />
-          <Sonner />
-          <AppContent />
-        </KycProvider>
+        <FilterProvider>
+          <TooltipProvider>
+            <KycProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </KycProvider>
+          </TooltipProvider>
+        </FilterProvider>
       </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
 
 export default App;

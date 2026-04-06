@@ -7,11 +7,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { parse } from 'date-fns';
 
+import { KycStageHistory } from '@/contexts/KycContext';
+
 interface KycTimelineProps {
     applicationId: string;
-    token: string | null;
-    createdDate?: string | null;
     applicationStatus?: string | null;
+    historyData?: KycStageHistory[];
 }
 
 interface TimelineEntry {
@@ -42,143 +43,9 @@ const ALL_STAGES = [
     "ACCOUNT OPENED"
 ];
 
-const KycTimeline: React.FC<KycTimelineProps> = ({ applicationId, token, createdDate, applicationStatus }) => {
-    const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+const KycTimeline: React.FC<KycTimelineProps> = ({ applicationId, applicationStatus, historyData }) => {
 
-    useEffect(() => {
-        const fetchTimeline = async () => {
-            if (!applicationId || !token) return;
-            setIsLoading(true);
-            setError(null);
-            try {
-                const response = await fetch('https://n8n.gopocket.in/webhook/KycTimeline', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ Application_no: applicationId }),
-                });
-
-                if (!response.ok) throw new Error('Failed to fetch timeline');
-
-                const text = await response.text();
-                let data = [];
-                try {
-                    data = text ? JSON.parse(text) : [];
-                } catch (e) {
-                    console.error('Invalid JSON from KycTimeline:', text);
-                    data = [];
-                }
-
-                if (Array.isArray(data)) {
-                    const fullTimeline: TimelineEntry[] = [...ALL_STAGES].reverse().map(stageName => {
-                        let apiData = data.find((d: any) => d.stage_name === stageName);
-
-                        // Handle interchangeable income proof names
-                        if (!apiData && stageName === "INCOME PROOF") {
-                            apiData = data.find((d: any) => d.stage_name === "CANCELLED_CHEQUE_OR_STATEMENT");
-                        }
-
-                        // Handle account opened / application status
-                        if (stageName === "ACCOUNT OPENED") {
-                            let accountApiData = apiData || data.find((d: any) =>
-                                d.stage_name === "APPLICATION STATUS" ||
-                                d.stage_name === "APPLICATION" ||
-                                ["IN PROGRESS", "PENDING FOR APPROVAL", "REJECTED", "APPROVED", "ACCOUNT OPENED"].includes(d.stage_name?.toUpperCase())
-                            );
-
-                            const hasEndPage = data.some((d: any) => d.stage_name === "END PAGE");
-
-                            let finalStatus = "PENDING";
-
-                            if (hasEndPage && applicationStatus) {
-                                finalStatus = applicationStatus.toUpperCase();
-                            } else if (accountApiData) {
-                                if (["IN PROGRESS", "PENDING FOR APPROVAL", "REJECTED", "APPROVED", "ACCOUNT OPENED"].includes(accountApiData.stage_name?.toUpperCase())) {
-                                    finalStatus = accountApiData.stage_name.toUpperCase();
-                                } else {
-                                    finalStatus = (accountApiData.stage_status || accountApiData.stage_name).toUpperCase();
-                                }
-                            }
-
-                            if (finalStatus && finalStatus !== "PENDING") {
-                                return {
-                                    stage: "APPLICATION STATUS",
-                                    status: finalStatus,
-                                    rejectionReason: accountApiData?.rejection_reason || "",
-                                    timestamp: accountApiData?.updated_on || ""
-                                };
-                            }
-
-                            return {
-                                stage: "APPLICATION STATUS",
-                                status: "PENDING",
-                                rejectionReason: "",
-                                timestamp: ""
-                            };
-                        }
-
-                        if (apiData) {
-                            return {
-                                stage: stageName,
-                                status: apiData.stage_status || "",
-                                rejectionReason: apiData.rejection_reason || "",
-                                timestamp: apiData.updated_on || ""
-                            };
-                        }
-
-                        return {
-                            stage: stageName,
-                            status: "PENDING",
-                            rejectionReason: "",
-                            timestamp: ""
-                        };
-                    });
-                    setTimeline(fullTimeline);
-                } else {
-                    setTimeline([]);
-                }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchTimeline();
-    }, [applicationId, token, createdDate]);
-
-    if (isLoading) {
-        return (
-            <div className="space-y-8 p-4">
-                {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex gap-4">
-                        <Skeleton className="w-8 h-8 rounded-full" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-1/4" />
-                            <Skeleton className="h-20 w-full rounded-xl" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500 gap-4">
-                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-                    <AlertCircle className="w-6 h-6 text-red-500" />
-                </div>
-                <p className="font-medium">{error}</p>
-            </div>
-        );
-    }
-
-    if (timeline.length === 0) {
+    if (!historyData || historyData.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500 opacity-50">
                 <Clock className="w-12 h-12 mb-4" />
@@ -186,6 +53,72 @@ const KycTimeline: React.FC<KycTimelineProps> = ({ applicationId, token, created
             </div>
         );
     }
+
+    const timeline: TimelineEntry[] = [...ALL_STAGES].reverse().map(stageName => {
+        let apiData = historyData.find((d) => d.kyc_stage === stageName);
+
+        // Handle interchangeable income proof names
+        if (!apiData && stageName === "INCOME PROOF") {
+            apiData = historyData.find((d) => d.kyc_stage === "CANCELLED_CHEQUE_OR_STATEMENT");
+        }
+
+        // Handle account opened / application status
+        if (stageName === "ACCOUNT OPENED") {
+            let accountApiData = apiData || historyData.find((d) => {
+                const name = d.kyc_stage;
+                return name === "APPLICATION STATUS" ||
+                    name === "APPLICATION" ||
+                    ["IN PROGRESS", "PENDING FOR APPROVAL", "REJECTED", "APPROVED", "ACCOUNT OPENED"].includes(name?.toUpperCase())
+            });
+
+            const hasEndPage = historyData.some((d) => d.kyc_stage === "END PAGE");
+
+            let finalStatus = "PENDING";
+
+            if (hasEndPage && applicationStatus) {
+                finalStatus = applicationStatus.toUpperCase();
+            } else if (accountApiData) {
+                const accountName = accountApiData.kyc_stage;
+                if (["IN PROGRESS", "PENDING FOR APPROVAL", "REJECTED", "APPROVED", "ACCOUNT OPENED"].includes(accountName?.toUpperCase())) {
+                    finalStatus = accountName.toUpperCase();
+                } else {
+                    finalStatus = (accountApiData.stage_status || accountName).toUpperCase();
+                }
+            }
+
+            if (finalStatus && finalStatus !== "PENDING") {
+                return {
+                    stage: "APPLICATION STATUS",
+                    status: finalStatus,
+                    rejectionReason: accountApiData?.rejection_reason || "",
+                    timestamp: accountApiData?.updated_on || ""
+                };
+            }
+
+            return {
+                stage: "APPLICATION STATUS",
+                status: "PENDING",
+                rejectionReason: "",
+                timestamp: ""
+            };
+        }
+
+        if (apiData) {
+            return {
+                stage: stageName,
+                status: apiData.stage_status || "",
+                rejectionReason: apiData.rejection_reason || "",
+                timestamp: apiData.updated_on || ""
+            };
+        }
+
+        return {
+            stage: stageName,
+            status: "PENDING",
+            rejectionReason: "",
+            timestamp: ""
+        };
+    });
 
     return (
         <ScrollArea className="h-full pr-4">

@@ -1,141 +1,274 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../utils';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useToast, toast } from '@/hooks/use-toast';
 
 interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  token: string | null;
-  login: (user_code: string, password: string) => Promise<void>;
-  logout: () => void;
+    user: any | null;
+    token: string | null;
+    hierarchyData: any[] | null;
+    sendOtp: (mailId: string) => Promise<boolean>;
+    verifyOtp: (mailId: string, otp: string) => Promise<boolean>;
+    logout: () => void;
+    isAuthenticated: boolean;
+    isInitialLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const savedToken = sessionStorage.getItem('rms_token');
-        const savedUser = sessionStorage.getItem('rms_user');
-
-        if (savedToken && savedUser) {
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
-          setIsAuthenticated(true);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<any | null>(() => {
+        try {
+            const savedUser = sessionStorage.getItem('user_data');
+            return savedUser ? JSON.parse(savedUser) : null;
+        } catch (e) {
+            return null;
         }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        logout();
-      } finally {
-        setIsLoading(false);
-      }
+    });
+    const [token, setToken] = useState<string | null>(sessionStorage.getItem('access_token'));
+    const [hierarchyData, setHierarchyData] = useState<any[] | null>(() => {
+        try {
+            const savedHierarchy = sessionStorage.getItem('hierarchy_data');
+            return savedHierarchy ? JSON.parse(savedHierarchy) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+    // Remove useToast hook as we will use the direct toast import to stabilize dependencies
+    // const { toast } = useToast();
+
+    const [isInitialLoading, setIsInitialLoading] = useState<boolean>(!!token && !user);
+
+    // Refs to prevent redundant/concurrent API calls
+    const isFetchingUser = useRef(false);
+    const isFetchingHierarchy = useRef(false);
+
+    const logout = useCallback(() => {
+        setToken(null);
+        setUser(null);
+        setHierarchyData(null);
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('user_data');
+        sessionStorage.removeItem('hierarchy_data');
+        toast({
+            title: "Logged Out",
+            description: "You have been successfully logged out.",
+        });
+    }, []); // toast is now a stable top-level import
+
+    const fetchUserData = useCallback(async (tokenToUse: string) => {
+        if (isFetchingUser.current) return;
+        isFetchingUser.current = true;
+
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.get_user_data`;
+
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'token': tokenToUse
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => "Unknown error");
+                console.error(`Fetch user data failed with status ${response.status}: ${errorText}`);
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                }
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.message && data.message.user_code) {
+                setUser(data.message);
+                sessionStorage.setItem('user_data', JSON.stringify(data.message));
+            } else {
+                console.warn('User data response did not contain user_code', data);
+                const errorMessage = data.message?.message || "";
+                if (errorMessage.includes("Token has been revoked") || errorMessage.includes("Invalid token")) {
+                    logout();
+                }
+            }
+        } catch (error) {
+            console.error('Fetch user data error:', error);
+        } finally {
+            isFetchingUser.current = false;
+        }
+    }, [logout]);
+
+    const fetchHierarchyData = useCallback(async (tokenToUse: string) => {
+        // Don't fetch if already in progress or if we already have it in state
+        if (isFetchingHierarchy.current || hierarchyData) return;
+        isFetchingHierarchy.current = true;
+
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            const apiUrl = `${API_BASE_URL}/api/method/rms.branch.heirarchy`;
+
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'token': tokenToUse
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => "Unknown error");
+                console.error(`Fetch hierarchy data failed with status ${response.status}: ${errorText}`);
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                }
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.message) {
+                setHierarchyData(data.message);
+                sessionStorage.setItem('hierarchy_data', JSON.stringify(data.message));
+                console.log(`Hierarchy data loaded: ${data.message.length} records`);
+            } else {
+                console.warn('Hierarchy data response did not contain message', data);
+            }
+        } catch (error) {
+            console.error('Fetch hierarchy data error:', error);
+        } finally {
+            isFetchingHierarchy.current = false;
+        }
+    }, [hierarchyData]); // Depend on hierarchyData to correctly skip if it exists
+
+    const sendOtp = async (mailId: string) => {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.login_with_otp`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mail_id: mailId })
+            });
+
+            const data = await response.json();
+
+            if (data.message && data.message.status === 'success') {
+                toast({
+                    title: "OTP Sent",
+                    description: data.message.message || "Please check your email for the OTP.",
+                    duration: 3000,
+                });
+                return true;
+            } else {
+                const errorMessage = data.message?.message || "Failed to send OTP";
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: errorMessage,
+                });
+                return false;
+            }
+        } catch (error) {
+            console.error('Send OTP error:', error);
+            toast({
+                variant: "destructive",
+                title: "Network Error",
+                description: "Failed to connect to the server. Please try again later.",
+            });
+            return false;
+        }
     };
 
-    initializeAuth();
-  }, []);
+    const verifyOtp = async (mailId: string, otp: string) => {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            const apiUrl = `${API_BASE_URL}/api/method/rms.apuser.login_with_otp`;
 
-  const login = async (user_code: string, password: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-      
-      // Step 1: Login
-      const loginResponse = await fetch(`${API_BASE_URL}/api/method/rms.apuser.ap_kyc_login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_code,
-          password
-        })
-      });
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mail_id: mailId, otp })
+            });
 
-      const loginData = await loginResponse.json();
+            const data = await response.json();
 
-      if (loginData.message?.status !== 'success' || !loginData.message?.token) {
-        throw new Error(loginData.message?.message || 'Login failed');
-      }
+            if (data.message && data.message.status === 'success' && data.message.access_token) {
+                const accessToken = data.message.access_token;
+                setToken(accessToken);
+                sessionStorage.setItem('access_token', accessToken);
 
-      const authToken = loginData.message.token;
+                // Fetch full user data after successful login
+                await fetchUserData(accessToken);
+                await fetchHierarchyData(accessToken);
 
-      // Step 2: Get user data
-      const userResponse = await fetch(`${API_BASE_URL}/api/method/rms.apuser.get_user_data`, {
-        method: 'GET',
-        headers: {
-          'token': authToken
+                toast({
+                    title: "Login Successful",
+                    description: "Welcome back!",
+                    duration: 3000,
+                });
+                return true;
+            } else {
+                const errorMessage = data.message?.message || "Invalid OTP";
+                toast({
+                    variant: "destructive",
+                    title: "Login Error",
+                    description: errorMessage,
+                });
+                return false;
+            }
+        } catch (error) {
+            console.error('Verify OTP error:', error);
+            toast({
+                variant: "destructive",
+                title: "Network Error",
+                description: "Failed to connect to the server. Please try again later.",
+            });
+            return false;
         }
-      });
+    };
 
-      const userDataResponse = await userResponse.json();
+    useEffect(() => {
+        const loadInitialData = async () => {
+            if (token) {
+                const promises = [];
+                if (!user && !isFetchingUser.current) {
+                    promises.push(fetchUserData(token));
+                }
+                if (!hierarchyData && !isFetchingHierarchy.current) {
+                    promises.push(fetchHierarchyData(token));
+                }
+                if (promises.length > 0) {
+                    await Promise.all(promises);
+                }
+            }
+            setIsInitialLoading(false);
+        };
 
-      if (!userDataResponse.message?.user_code || !userDataResponse.message?.ap_code) {
-        throw new Error('Failed to fetch user data');
-      }
+        if (token) {
+            loadInitialData();
+        } else {
+            setIsInitialLoading(false);
+        }
+    }, [token, user, hierarchyData, fetchUserData, fetchHierarchyData]);
 
-      const userData: User = {
-        user_code: userDataResponse.message.user_code,
-        ap_code: userDataResponse.message.ap_code,
-        role: 'employee', // Default role for compatibility
-        email: '',
-        employeeId: userDataResponse.message.user_code, // Use user_code as employeeId
-        team: '[]' // Default empty team
-      };
+    const isAuthenticated = !!token;
 
-      // Set state
-      setToken(authToken);
-      setUser(userData);
-      setIsAuthenticated(true);
+    return (
+        <AuthContext.Provider value={{ user, token, hierarchyData, sendOtp, verifyOtp, logout, isAuthenticated, isInitialLoading }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
 
-      // Save to sessionStorage
-      sessionStorage.setItem('rms_token', authToken);
-      sessionStorage.setItem('rms_user', JSON.stringify(userData));
-
-    } catch (error) {
-      console.error('Login error:', error);
-      logout();
-      throw error;
-    } finally {
-      setIsLoading(false);
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('rms_token');
-    sessionStorage.removeItem('rms_user');
-  };
-
-  return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoading,
-      token,
-      login,
-      logout,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    return context;
 };
