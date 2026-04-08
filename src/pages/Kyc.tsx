@@ -371,6 +371,7 @@ const Kyc: React.FC = () => {
                                         ) : <ArrowUpDown className="w-3 h-3 text-slate-300 group-hover/col:text-slate-400" />}
                                     </div>
                                 </th>
+                                <th className="font-semibold text-slate-600 text-center">Number</th>
                                 <th className="text-left py-3 px-4 font-semibold text-slate-600 cursor-pointer select-none group/col" onClick={() => handleSort('ucc')}>
                                     <div className="flex items-center gap-2">
                                         UCC
@@ -390,10 +391,10 @@ const Kyc: React.FC = () => {
                                 <th className="text-left py-3 px-4 font-semibold text-slate-600">Refer</th>
                                 <th className="text-left py-3 px-4 font-semibold text-slate-600">Stage</th>
                                 <th className="text-left py-3 px-4 font-semibold text-slate-600">Status</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600">NSE</th>
+                                {/* <th className="text-center py-3 px-4 font-semibold text-slate-600">NSE</th>
                                 <th className="text-center py-3 px-4 font-semibold text-slate-600">BSE</th>
                                 <th className="text-center py-3 px-4 font-semibold text-slate-600">NFO</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600">Ready</th>
+                                <th className="text-center py-3 px-4 font-semibold text-slate-600">Ready</th> */}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -413,6 +414,11 @@ const Kyc: React.FC = () => {
                                         onClick={() => setSelectedAppId(row.application_id)}
                                     >
                                         <td className="py-3 px-4 font-medium text-slate-900">{formatValue(row.application_id)}</td>
+                                        <td className="py-3 px-4 font-mono text-sm font-medium text-slate-700">
+                                            {row.mobile_number
+                                                ? `${row.mobile_number.slice(0, 2)}******${row.mobile_number.slice(-2)}`
+                                                : '-'}
+                                        </td>
                                         <td className="py-3 px-4 font-mono text-xs text-slate-600">{row.ucc || '-'}</td>
                                         <td className="py-3 px-4 text-slate-700">{formatValue(row.user_name)}</td>
                                         <td className="py-3 px-4 text-slate-700">{formatValue(row.refer)}</td>
@@ -434,7 +440,7 @@ const Kyc: React.FC = () => {
                                                 {row.application_status || 'IN PROGRESS'}
                                             </Badge>
                                         </td>
-                                        <td className="py-3 px-4 text-center">{renderSegmentBadge(row.nse)}</td>
+                                        {/* <td className="py-3 px-4 text-center">{renderSegmentBadge(row.nse)}</td>
                                         <td className="py-3 px-4 text-center">{renderSegmentBadge(row.bse)}</td>
                                         <td className="py-3 px-4 text-center">{renderSegmentBadge(row.nfo)}</td>
                                         <td className="py-3 px-4 text-center">
@@ -442,7 +448,7 @@ const Kyc: React.FC = () => {
                                                 "w-2 h-2 rounded-full mx-auto",
                                                 row.client_mapping ? "bg-green-500" : "bg-red-400 opacity-30"
                                             )} />
-                                        </td>
+                                        </td> */}
                                     </tr>
                                 ))
                             ) : !isLoading && (
