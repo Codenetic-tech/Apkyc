@@ -5,10 +5,6 @@ import { cn } from "@/lib/utils";
 
 const bottomNavItems = [
   { label: "Dashboard", path: "/", icon: Home },
-  { label: "Orders", path: "/orderbook", icon: ClipboardList },
-  { label: "Positions", path: "/positions", icon: BarChart2 },
-  { label: "Holdings", path: "/holdings", icon: Briefcase },
-  { label: "Funds", path: "/mutualfunds", icon: TrendingUp },
 ];
 
 const BottomNav = () => {
