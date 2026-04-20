@@ -155,10 +155,11 @@ const Settings = () => {
 
                                     <div className="flex items-center gap-2">
                                         <div className="flex-1 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 flex items-center justify-between group/link">
-                                            <span className="truncate">https://signup.gopocket.in/?refer={user?.user_code || "XXXXXX"}</span>
+                                            <span className="truncate">https://signup.gopocket.in/?refer={user?.client_code || user?.user_code || "XXXXXX"}</span>
                                             <button
                                                 onClick={() => {
-                                                    const link = `https://signup.gopocket.in/?refer=${user?.user_code || ""}`;
+                                                    const referralCode = user?.client_code || user?.user_code || "";
+                                                    const link = `https://signup.gopocket.in/?refer=${referralCode}`;
                                                     navigator.clipboard.writeText(link);
                                                     toast({
                                                         title: "Link Copied!",
