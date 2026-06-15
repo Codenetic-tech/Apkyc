@@ -19,13 +19,21 @@ import {
     Fingerprint,
     MapPin,
     Calendar,
-    Briefcase
+    Briefcase,
+    Trophy,
+    Plane,
+    Hotel,
+    Utensils,
+    Compass,
+    Share2,
+    Copy,
+    MessageCircle
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-type SettingsTab = "profile" | "trading" | "orders" | "theme" | "feedback";
+type SettingsTab = "profile" | "contest" | "trading" | "orders" | "theme" | "feedback";
 
 const colors = [
     { name: "Purple (Default)", value: "bg-purple-600", hsl: "270 91% 65%" },
@@ -92,6 +100,7 @@ const Settings = () => {
 
     const sidebarItems: { id: SettingsTab; label: string; icon: any }[] = [
         { id: "profile", label: "Profile", icon: User },
+        { id: "contest", label: "Contest", icon: Trophy },
         // { id: "trading", label: "Trade Settings", icon: Sliders },
         // { id: "orders", label: "Order Settings", icon: SettingsIcon },
         // { id: "theme", label: "Theme & Colors", icon: Palette },
@@ -130,12 +139,6 @@ const Settings = () => {
 
             {/* Main Settings Content */}
             <ScrollArea className="flex-1 p-8">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-slate-900">
-                        {sidebarItems.find(i => i.id === activeTab)?.label}
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1">Manage your account and platform preferences.</p>
-                </div>
 
                 {/* Tab Content */}
                 <div className="space-y-6">
@@ -233,6 +236,173 @@ const Settings = () => {
                                             <div className="w-full bg-slate-50 border-0 rounded-lg px-3 py-2 text-sm text-slate-900">
                                                 {user?.active_date || "N/A"}
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "contest" && (
+                        <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                                {/* Left Column: Contest Image with 1122 * 1402 aspect ratio */}
+                                <div className="lg:col-span-5 flex justify-center w-full">
+                                    <div className="w-full aspect-[1122/1402] rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-100">
+                                        <img
+                                            src="/Bngk.jpeg"
+                                            alt="Bangkok Trip Contest"
+                                            className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Details */}
+                                <div className="lg:col-span-7 space-y-6 w-full">
+                                    {/* Campaign Badge, Title & Details */}
+                                    <div className="space-y-3">
+                                        <div className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                            <Star className="h-3 w-3 fill-amber-700/20" />
+                                            Active Referral Contest
+                                        </div>
+                                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                                            Get a Bangkok trip Fully sponcered
+                                        </h2>
+                                        <p className="text-sm text-slate-500 font-medium">
+                                            We take care flights hotels stay food sightseeing everything!
+                                        </p>
+                                    </div>
+
+                                    {/* Inclusions Quick Grid */}
+                                    <div className="border-y border-slate-100 py-4 grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-slate-600">
+                                        <div className="flex flex-col items-center">
+                                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl mb-1.5 shadow-sm"><Plane className="h-4 w-4" /></div>
+                                            <span>Flights</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl mb-1.5 shadow-sm"><Hotel className="h-4 w-4" /></div>
+                                            <span>Hotels</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl mb-1.5 shadow-sm"><Utensils className="h-4 w-4" /></div>
+                                            <span>Food</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mb-1.5 shadow-sm"><Compass className="h-4 w-4" /></div>
+                                            <span>Sightseeing</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl mb-1.5 shadow-sm"><Trophy className="h-4 w-4" /></div>
+                                            <span>Everything</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Eligibility Checklist */}
+                                    {(() => {
+                                        // TODO: Replace this stats object with real API data later
+                                        const contestStats = {
+                                            inProgress: 0,
+                                            accountsOpened: 0,
+                                            firstTradedCount: 0,
+                                            percentage: 0
+                                        };
+
+                                        return (
+                                            <div className="space-y-3">
+                                                <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Eligibility & Requirements</h3>
+
+                                                <div className="text-xs text-slate-500 space-y-1.5 bg-slate-50/60 p-3 rounded-xl border border-slate-100 font-medium">
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-450 shrink-0" />
+                                                        open 500 demat account in three months
+                                                    </p>
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-450 shrink-0" />
+                                                        30% of accounts should done first trade
+                                                    </p>
+                                                </div>
+
+                                                {/* Four Small Summary Cards */}
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                    {/* In Progress Card */}
+                                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex flex-col justify-between shadow-sm">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">In Progress</span>
+                                                        <span className="text-lg font-extrabold text-slate-800 mt-2">{contestStats.inProgress}</span>
+                                                    </div>
+
+                                                    {/* Accounts Opened Card */}
+                                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex flex-col justify-between shadow-sm">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">A/c Opened</span>
+                                                        <span className="text-lg font-extrabold text-slate-800 mt-2">{contestStats.accountsOpened}</span>
+                                                    </div>
+
+                                                    {/* First Traded Count Card */}
+                                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex flex-col justify-between shadow-sm">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">First Traded</span>
+                                                        <span className="text-lg font-extrabold text-slate-800 mt-2">{contestStats.firstTradedCount}</span>
+                                                    </div>
+
+                                                    {/* Percentage Card */}
+                                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex flex-col justify-between shadow-sm">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Percentage</span>
+                                                        <span className="text-lg font-extrabold text-slate-800 mt-2">{contestStats.percentage}%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Referral Link & Social Sharing */}
+                                    <div className="space-y-3 pt-2">
+                                        <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Your Contest Referral Link</h3>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 flex items-center justify-between overflow-hidden">
+                                                <span className="truncate pr-4">
+                                                    {`https://gopocket.in/?refer=${user?.client_code || user?.user_code || "SKY40001"}?src=contest?tag=Bngk`}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
+                                                    const link = `https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`;
+                                                    navigator.clipboard.writeText(link);
+                                                    toast({
+                                                        title: "Link Copied!",
+                                                        description: "Contest referral link copied to clipboard.",
+                                                    });
+                                                }}
+                                                className="p-3 hover:bg-primary/10 rounded-xl transition-all text-primary border border-slate-200 bg-white hover:border-primary/20 shadow-sm flex items-center justify-center shrink-0"
+                                                title="Copy Link"
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </button>
+                                        </div>
+
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
+                                                    const link = encodeURIComponent(`https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`);
+                                                    const text = encodeURIComponent("Hey! Join GoPocket using my link to get a fully sponsored Bangkok trip package and trade easily! ");
+                                                    window.open(`https://api.whatsapp.com/send?text=${text}${link}`, '_blank');
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl transition-all border border-emerald-100"
+                                            >
+                                                <MessageCircle className="h-4 w-4" />
+                                                Share on WhatsApp
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
+                                                    const link = encodeURIComponent(`https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`);
+                                                    const text = encodeURIComponent("Register via my referral link to qualify for GoPocket's fully sponsored Bangkok Trip campaign! ");
+                                                    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${link}`, '_blank');
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold rounded-xl transition-all border border-sky-100"
+                                            >
+                                                <Share2 className="h-4 w-4" />
+                                                Share on Twitter
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
