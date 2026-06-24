@@ -358,13 +358,13 @@ const Settings = () => {
                                         <div className="flex gap-2">
                                             <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 flex items-center justify-between overflow-hidden">
                                                 <span className="truncate pr-4">
-                                                    {`https://gopocket.in/?refer=${user?.client_code || user?.user_code || "SKY40001"}?src=contest?tag=Bngk`}
+                                                    {`https://gopocket.in/open-account-call-back?refer=${user?.client_code || user?.user_code }&src=contest&tag=Bngk`}
                                                 </span>
                                             </div>
                                             <button
                                                 onClick={() => {
-                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
-                                                    const link = `https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`;
+                                                    const referralCode = user?.client_code || user?.user_code ;
+                                                    const link = `https://gopocket.in/open-account-call-back?refer=${referralCode}&src=contest&tag=Bngk`;
                                                     navigator.clipboard.writeText(link);
                                                     toast({
                                                         title: "Link Copied!",
@@ -381,8 +381,8 @@ const Settings = () => {
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => {
-                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
-                                                    const link = encodeURIComponent(`https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`);
+                                                    const referralCode = user?.client_code || user?.user_code ;
+                                                    const link = encodeURIComponent(`https://gopocket.in/open-account-call-back?refer=${referralCode}&src=contest&tag=Bngk`);
                                                     const text = encodeURIComponent("Hey! Join GoPocket using my link to get a fully sponsored Bangkok trip package and trade easily! ");
                                                     window.open(`https://api.whatsapp.com/send?text=${text}${link}`, '_blank');
                                                 }}
@@ -393,8 +393,8 @@ const Settings = () => {
                                             </button>
                                             <button
                                                 onClick={() => {
-                                                    const referralCode = user?.client_code || user?.user_code || "SKY40001";
-                                                    const link = encodeURIComponent(`https://gopocket.in/?refer=${referralCode}?src=contest?tag=Bngk`);
+                                                    const referralCode = user?.client_code || user?.user_code ;
+                                                    const link = encodeURIComponent(`https://gopocket.in/open-account-call-back?refer=${referralCode}&src=contest&tag=Bngk`);
                                                     const text = encodeURIComponent("Register via my referral link to qualify for GoPocket's fully sponsored Bangkok Trip campaign! ");
                                                     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${link}`, '_blank');
                                                 }}
